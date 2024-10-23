@@ -2,6 +2,8 @@
 import 'package:dio/dio.dart';
 import 'dart:convert';
 
+import 'package:flutter_statusbar_app/logging/logging_interceptor.dart';
+
 class CurlDioConverter {
   static final Dio _dio = Dio()
     ..interceptors.addAll([
@@ -153,30 +155,6 @@ class RequestDetails {
 }
 
 // Interceptors
-class LoggingInterceptor extends Interceptor {
-  @override
-  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    print('🌐 REQUEST[${options.method}] => PATH: ${options.path}');
-    print('Headers: ${options.headers}');
-    print('Query Parameters: ${options.queryParameters}');
-    print('Body: ${options.data}');
-    handler.next(options);
-  }
-
-  @override
-  void onResponse(Response response, ResponseInterceptorHandler handler) {
-    print('⬅️ RESPONSE[${response.statusCode}] => PATH: ${response.requestOptions.path}');
-    print('Response Data: ${response.data}');
-    handler.next(response);
-  }
-
-  @override
-  void onError(DioException err, ErrorInterceptorHandler handler) {
-    print('❌ ERROR[${err.response?.statusCode}] => PATH: ${err.requestOptions.path}');
-    print('Error Message: ${err.message}');
-    handler.next(err);
-  }
-}
 
 class ErrorInterceptor extends Interceptor {
   @override

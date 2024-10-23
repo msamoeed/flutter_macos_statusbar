@@ -8,6 +8,7 @@
 import Cocoa
 import FlutterMacOS
 
+
 @NSApplicationMain
 class AppDelegate: FlutterAppDelegate {
   // Instance of the status bar controller

@@ -2,7 +2,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_statusbar_app/main.dart';
 import 'package:flutter_statusbar_app/models/settings.dart';
 import 'package:localstore/localstore.dart';
 
@@ -62,6 +65,25 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _updateNotifications(bool value) async {
     try {
+      if (value && !kIsWeb && Platform.isMacOS) {
+        final bool? permissionGranted = await flutterLocalNotificationsPlugin
+            .resolvePlatformSpecificImplementation<
+                MacOSFlutterLocalNotificationsPlugin>()
+            ?.requestPermissions(
+              alert: true,
+              badge: true,
+              sound: true,
+            );
+        if (permissionGranted != true) {
+          // Permission not granted, don't enable notifications
+          // ignore: use_build_context_synchronously
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Notification permission denied')),
+          );
+          return;
+        }
+      }
+
       setState(() {
         _notificationsEnabled = value;
       });
@@ -169,7 +191,6 @@ class _SettingsPageState extends State<SettingsPage> {
 
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              
                               const SnackBar(content: Text('Export completed')),
                             );
                           }

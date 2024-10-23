@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_statusbar_app/models/settings.dart';
 import 'package:flutter_statusbar_app/networking/api.dart';
+import 'package:flutter_statusbar_app/screens/curl_performance.dart';
 import 'package:flutter_statusbar_app/screens/settings.dart';
 import 'package:localstore/localstore.dart';
 import 'dart:async';
@@ -342,7 +343,29 @@ class _MyHomePageState extends State<MyHomePage> {
                 context: context,
                 builder: (context) => AlertDialog(
                   title: Text(curl.name),
-                  content: SelectableText(curl.curl),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Flexible(child: SelectableText(curl.curl)),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => CurlPerformanceScreen(
+                                curl: curl.curl,
+                                name: curl.name,
+                              ),
+                            ),
+                          );
+                        },
+                        child: const Text('View Performance'),
+                      ),
+                    ],
+                  ),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context),
