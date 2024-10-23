@@ -36,7 +36,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _updateInterval(String value) async {
     final interval = int.tryParse(value) ?? 10;
-    
+
     try {
       final settings = {
         'healthCheckInterval': interval,
@@ -82,7 +82,8 @@ class _SettingsPageState extends State<SettingsPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update notifications: ${e.toString()}')),
+          SnackBar(
+              content: Text('Failed to update notifications: ${e.toString()}')),
         );
       }
     }
@@ -144,26 +145,31 @@ class _SettingsPageState extends State<SettingsPage> {
                           fileName: 'curls_export.json',
                           // allowedExtensions: ['json'],
                         );
-          
+
                         if (result != null) {
                           final file = File(result);
                           final db = Localstore.instance;
-                          
+
                           final curls = await db.collection('curls').get();
-                          final settings = await db.collection('settings').doc('general').get();
-                          
+                          final settings = await db
+                              .collection('settings')
+                              .doc('general')
+                              .get();
+
                           final exportData = {
                             'curls': curls,
-                            'settings': settings ?? {
-                              'healthCheckInterval': 10,
-                              'notificationsEnabled': true,
-                            },  // Use defaults if no settings exist
+                            'settings': settings ??
+                                {
+                                  'healthCheckInterval': 10,
+                                  'notificationsEnabled': true,
+                                }, // Use defaults if no settings exist
                           };
-                          
+
                           await file.writeAsString(jsonEncode(exportData));
-                          
+
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
+                              
                               const SnackBar(content: Text('Export completed')),
                             );
                           }
@@ -178,51 +184,72 @@ class _SettingsPageState extends State<SettingsPage> {
                     child: FilledButton.icon(
                       onPressed: () async {
                         final result = await FilePicker.platform.pickFiles(
+                          allowMultiple: false,
                           dialogTitle: 'Import cURLs and Settings',
-                          allowedExtensions: ['json'],
-                          type: FileType.custom,
+
+                          // allowedExtensions: ['json'],
+                          // type: FileType.custom,
                         );
-          
+
                         if (result != null) {
                           try {
                             final file = File(result.files.single.path!);
                             final content = await file.readAsString();
-                            final data = jsonDecode(content) as Map<String, dynamic>;
-                            
+                            final data =
+                                jsonDecode(content) as Map<String, dynamic>;
+
                             if (data['settings'] != null) {
-                              await _db.collection('settings').doc('general').set(data['settings']);
-                              
+                              await _db
+                                  .collection('settings')
+                                  .doc('general')
+                                  .set(data['settings']);
+
                               setState(() {
-                                if (data['settings']['healthCheckInterval'] != null) {
-                                  _intervalController.text = data['settings']['healthCheckInterval'].toString();
+                                if (data['settings']['healthCheckInterval'] !=
+                                    null) {
+                                  _intervalController.text = data['settings']
+                                          ['healthCheckInterval']
+                                      .toString();
                                 }
                                 // Handle potential null notification setting
-                                _notificationsEnabled = data['settings']['notificationsEnabled'] ?? true;
+                                _notificationsEnabled = data['settings']
+                                        ['notificationsEnabled'] ??
+                                    true;
                               });
-                              
+
                               widget.onSettingsChanged(Settings(
-                                healthCheckInterval: data['settings']['healthCheckInterval'] ?? 10,
-                                notificationsEnabled: data['settings']['notificationsEnabled'],
+                                healthCheckInterval: data['settings']
+                                        ['healthCheckInterval'] ??
+                                    10,
+                                notificationsEnabled: data['settings']
+                                    ['notificationsEnabled'],
                               ));
                             }
-                            
+
                             if (data['curls'] != null) {
-                              final curlsData = data['curls'] as Map<String, dynamic>;
+                              final curlsData =
+                                  data['curls'] as Map<String, dynamic>;
                               for (var entry in curlsData.entries) {
-                                await _db.collection('curls').doc(entry.key).set(entry.value);
+                                await _db
+                                    .collection('curls')
+                                    .doc(entry.key)
+                                    .set(entry.value);
                               }
                             }
-          
+
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Import completed')),
+                                const SnackBar(
+                                    content: Text('Import completed')),
                               );
                               Navigator.pop(context, true);
                             }
                           } catch (e) {
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Import failed: ${e.toString()}')),
+                                SnackBar(
+                                    content:
+                                        Text('Import failed: ${e.toString()}')),
                               );
                             }
                           }
