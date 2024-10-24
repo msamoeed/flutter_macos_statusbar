@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_statusbar_app/models/curl.dart';
 import 'package:flutter_statusbar_app/models/settings.dart';
 import 'package:flutter_statusbar_app/networking/api.dart';
 import 'package:flutter_statusbar_app/screens/curl_performance.dart';
+import 'package:flutter_statusbar_app/screens/log_viewer.dart';
 import 'package:flutter_statusbar_app/screens/settings.dart';
 import 'package:localstore/localstore.dart';
 import 'dart:async';
@@ -47,22 +49,6 @@ class MyApp extends StatelessWidget {
       home: const MyHomePage(title: 'cURL Monitor'),
     );
   }
-}
-
-class CurlStatus {
-  final String id;
-  final String name;
-  final String curl;
-  bool isHealthy;
-  bool wasHealthy; // Track previous state for notification logic
-
-  CurlStatus({
-    required this.id,
-    required this.name,
-    required this.curl,
-    this.isHealthy = false,
-    this.wasHealthy = false,
-  });
 }
 
 class MyHomePage extends StatefulWidget {
@@ -172,6 +158,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _loadCurls() async {
+   
     final items = await _db.collection('curls').get();
     if (items != null) {
       final List<CurlStatus> loadedCurls = items.entries.map((item) {
@@ -179,6 +166,7 @@ class _MyHomePageState extends State<MyHomePage> {
           id: item.key,
           name: item.value['name'],
           curl: item.value['curl'],
+          endpoint: item.value['endpoint'],
         );
       }).toList();
 
@@ -192,11 +180,12 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  Future<void> _saveCurl(String name, String curl) async {
+  Future<void> _saveCurl(String name, String curl, String endpoint) async {
     final id = _db.collection('curls').doc().id;
     final data = {
       'name': name,
       'curl': curl,
+      'endpoint': endpoint,
     };
 
     await _db.collection('curls').doc(id).set(data);
@@ -205,6 +194,7 @@ class _MyHomePageState extends State<MyHomePage> {
       id: id,
       name: name,
       curl: curl,
+      endpoint: endpoint,
     );
 
     setState(() {
@@ -276,9 +266,11 @@ class _MyHomePageState extends State<MyHomePage> {
                   onPressed: () async {
                     if (_formKey.currentState!.validate()) {
                       await _saveCurl(
-                        _nameController.text,
-                        _curlController.text,
-                      );
+                          _nameController.text,
+                          _curlController.text,
+                          CurlDioConverter.parseCurlCommand(
+                                  _curlController.text)
+                              .url);
                       _nameController.clear();
                       _curlController.clear();
                       if (context.mounted) {
@@ -355,9 +347,8 @@ class _MyHomePageState extends State<MyHomePage> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => CurlPerformanceScreen(
-                                curl: curl.curl,
-                                name: curl.name,
+                              builder: (context) => LogViewer(
+                                endpointPath: curl.endpoint,
                               ),
                             ),
                           );

@@ -1,15 +1,85 @@
 import 'package:dio/dio.dart';
 import 'package:localstore/localstore.dart';
 
+class RequestStats {
+  int totalRequests;
+  int successfulRequests;
+  int failedRequests;
+  int totalResponseTimeMs;
+  double averageResponseTimeMs;
+  DateTime lastAccessTime;
+  List<LogEntry> recentLogs;
+
+  RequestStats({
+    this.totalRequests = 0,
+    this.successfulRequests = 0,
+    this.failedRequests = 0,
+    this.totalResponseTimeMs = 0,
+    this.averageResponseTimeMs = 0,
+    required this.lastAccessTime,
+    List<LogEntry>? recentLogs,  // Make this parameter optional
+  }) : recentLogs = recentLogs ?? []; // Initialize as empty mutable list if null
+
+  Map<String, dynamic> toJson() => {
+    'totalRequests': totalRequests,
+    'successfulRequests': successfulRequests,
+    'failedRequests': failedRequests,
+    'totalResponseTimeMs': totalResponseTimeMs,
+    'averageResponseTimeMs': averageResponseTimeMs,
+    'lastAccessTime': lastAccessTime.toIso8601String(),
+    'recentLogs': recentLogs.map((log) => log.toJson()).toList(),
+  };
+
+  factory RequestStats.fromJson(Map<String, dynamic> json) {
+    return RequestStats(
+      totalRequests: json['totalRequests'] ?? 0,
+      successfulRequests: json['successfulRequests'] ?? 0,
+      failedRequests: json['failedRequests'] ?? 0,
+      totalResponseTimeMs: json['totalResponseTimeMs'] ?? 0,
+      averageResponseTimeMs: json['averageResponseTimeMs'] ?? 0,
+      lastAccessTime: DateTime.parse(json['lastAccessTime']),
+      recentLogs: ((json['recentLogs'] as List?) ?? [])
+          .map((log) => LogEntry.fromJson(log as Map<String, dynamic>))
+          .toList(), // Create a new mutable list
+    );
+  }
+
+  void updateStats(LogEntry newLog) {
+    totalRequests++;
+    if (newLog.error == null) {
+      successfulRequests++;
+    } else {
+      failedRequests++;
+    }
+    
+    totalResponseTimeMs += newLog.responseTimeMs;
+    averageResponseTimeMs = totalResponseTimeMs / totalRequests;
+    lastAccessTime = newLog.timestamp;
+    
+    // Create a new list if recentLogs is null
+    if (recentLogs.length >= 10) {
+      recentLogs.removeLast();
+    }
+    recentLogs.insert(0, newLog);
+  }
+}
+
+
 class LogEntry {
-  final String curl;
+  final Map<String, dynamic> requestData;
+  final Map<String, dynamic>? responseData;
+  final Map<String, dynamic> headers;
+  final Map<String, dynamic> queryParameters;
   final int statusCode;
   final int responseTimeMs;
   final DateTime timestamp;
   final String? error;
 
   LogEntry({
-    required this.curl,
+    required this.requestData,
+    this.responseData,
+    required this.headers,
+    required this.queryParameters,
     required this.statusCode,
     required this.responseTimeMs,
     required this.timestamp,
@@ -17,7 +87,10 @@ class LogEntry {
   });
 
   Map<String, dynamic> toJson() => {
-    'curl': curl,
+    'requestData': requestData,
+    'responseData': responseData,
+    'headers': headers,
+    'queryParameters': queryParameters,
     'statusCode': statusCode,
     'responseTimeMs': responseTimeMs,
     'timestamp': timestamp.toIso8601String(),
@@ -26,7 +99,10 @@ class LogEntry {
 
   factory LogEntry.fromJson(Map<String, dynamic> json) {
     return LogEntry(
-      curl: json['curl'],
+      requestData: json['requestData'] ?? {},
+      responseData: json['responseData'],
+      headers: json['headers'] ?? {},
+      queryParameters: json['queryParameters'] ?? {},
       statusCode: json['statusCode'],
       responseTimeMs: json['responseTimeMs'],
       timestamp: DateTime.parse(json['timestamp']),
@@ -39,14 +115,33 @@ class LoggingInterceptor extends Interceptor {
   final _db = Localstore.instance;
   final Map<String, DateTime> _requestTimes = {};
 
-  Future<void> _saveLog(LogEntry entry) async {
+  String _sanitizePath(String path) {
+    return path.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+  }
+
+  Future<void> _updateStats(String path, LogEntry entry) async {
     try {
-      final docId = DateTime.now().millisecondsSinceEpoch.toString();
-      await _db.collection('curl_logs').doc(docId).set(entry.toJson());
+      final sanitizedPath = _sanitizePath(path);
+      final statsDoc = await _db.collection('endpoint_stats').doc(sanitizedPath).get();
+      
+      RequestStats stats;
+      if (statsDoc != null) {
+        stats = RequestStats.fromJson(statsDoc as Map<String, dynamic>);
+      } else {
+        stats = RequestStats(
+          lastAccessTime: entry.timestamp,
+          recentLogs: [], // Initialize with empty mutable list
+        );
+      }
+      
+      stats.updateStats(entry);
+      await _db.collection('endpoint_stats').doc(sanitizedPath).set(stats.toJson());
     } catch (e) {
-      print('Failed to save log: $e');
+      print('Failed to update stats: $e');
+      print('Error stack trace: ${e is Error ? e.stackTrace : ''}');
     }
   }
+
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
@@ -54,10 +149,6 @@ class LoggingInterceptor extends Interceptor {
     _requestTimes[options.path] = timestamp;
 
     print('🌐 REQUEST[${options.method}] => PATH: ${options.path}');
-    print('Timestamp: ${timestamp.toIso8601String()}');
-    print('Headers: ${options.headers}');
-    print('Query Parameters: ${options.queryParameters}');
-    print('Body: ${options.data}');
     
     handler.next(options);
   }
@@ -70,21 +161,19 @@ class LoggingInterceptor extends Interceptor {
         ? endTime.difference(startTime).inMilliseconds 
         : -1;
 
-    print('⬅️ RESPONSE[${response.statusCode}] => PATH: ${response.requestOptions.path}');
-    print('Response Time: ${responseTimeMs}ms');
-    print('Response Data: ${response.data}');
-
-    // Create and save log entry
     final entry = LogEntry(
-      //fix bug here
-      curl: response.requestOptions.data?.toString() ?? 'No cURL data',
+      requestData: response.requestOptions.data ?? {},
+      //responseData: response.data,
+      headers: response.requestOptions.headers,
+      queryParameters: response.requestOptions.queryParameters,
       statusCode: response.statusCode ?? -1,
       responseTimeMs: responseTimeMs,
       timestamp: endTime,
     );
-    _saveLog(entry);
 
+    _updateStats(response.requestOptions.path, entry);
     _requestTimes.remove(response.requestOptions.path);
+    
     handler.next(response);
   }
 
@@ -96,57 +185,48 @@ class LoggingInterceptor extends Interceptor {
         ? endTime.difference(startTime).inMilliseconds 
         : -1;
 
-    print('❌ ERROR[${err.response?.statusCode}] => PATH: ${err.requestOptions.path}');
-    print('Error Message: ${err.message}');
-    print('Response Time: ${responseTimeMs}ms');
-
-    // Create and save log entry for errors
     final entry = LogEntry(
-      curl: err.requestOptions.data?.toString() ?? 'No cURL data',
+      requestData: err.requestOptions.data ?? {},
+      headers: err.requestOptions.headers,
+      queryParameters: err.requestOptions.queryParameters,
       statusCode: err.response?.statusCode ?? -1,
       responseTimeMs: responseTimeMs,
       timestamp: endTime,
       error: err.message,
     );
-    _saveLog(entry);
 
+    _updateStats(err.requestOptions.path, entry);
     _requestTimes.remove(err.requestOptions.path);
+    
     handler.next(err);
   }
 
-  // Helper method to get logs for a specific cURL
-  Future<List<LogEntry>> getLogsForCurl(String curl) async {
+  Future<RequestStats?> getEndpointStats(String path) async {
     try {
-      final logs = await _db.collection('curl_logs').get();
-      if (logs == null) return [];
-
-      return logs.entries
-          .map((e) => LogEntry.fromJson(e.value))
-          .where((log) => log.curl == curl)
-          .toList()
-        ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      final sanitizedPath = _sanitizePath(path);
+      final stats = await _db.collection('endpoint_stats').doc(sanitizedPath).get();
+      return stats != null ? RequestStats.fromJson(stats) : null;
     } catch (e) {
-      print('Failed to get logs: $e');
-      return [];
+      print('Failed to get endpoint stats: $e');
+      return null;
     }
   }
 
-  // Helper method to clear old logs
-  Future<void> clearOldLogs({Duration? olderThan}) async {
+  Future<void> clearOldEndpointStats({Duration? olderThan}) async {
     try {
-      final logs = await _db.collection('curl_logs').get();
-      if (logs == null) return;
+      final stats = await _db.collection('endpoint_stats').get();
+      if (stats == null) return;
 
       final cutoffDate = DateTime.now().subtract(olderThan ?? const Duration(days: 7));
 
-      for (var entry in logs.entries) {
-        final log = LogEntry.fromJson(entry.value);
-        if (log.timestamp.isBefore(cutoffDate)) {
-          await _db.collection('curl_logs').doc(entry.key).delete();
+      for (var entry in stats.entries) {
+        final stat = RequestStats.fromJson(entry.value);
+        if (stat.lastAccessTime.isBefore(cutoffDate)) {
+          await _db.collection('endpoint_stats').doc(entry.key).delete();
         }
       }
     } catch (e) {
-      print('Failed to clear old logs: $e');
+      print('Failed to clear old stats: $e');
     }
   }
 }

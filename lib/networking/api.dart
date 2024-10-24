@@ -13,7 +13,7 @@ class CurlDioConverter {
     ]);
 
   static Future<Response> executeCurl(String curlCommand) async {
-    final RequestDetails details = _parseCurlCommand(curlCommand);
+    final RequestDetails details = parseCurlCommand(curlCommand);
     
     try {
       return await _dio.request(
@@ -37,8 +37,9 @@ class CurlDioConverter {
       );
     }
   }
+  
 
-  static RequestDetails _parseCurlCommand(String curlCommand) {
+  static RequestDetails parseCurlCommand(String curlCommand) {
     final details = RequestDetails();
     final List<String> parts = _splitCommand(curlCommand);
     

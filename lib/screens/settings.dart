@@ -63,6 +63,32 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  // Add this new method to clean the database
+  Future<void> _cleanDatabase() async {
+    try {
+      // Delete all CURLs
+      final curls = await _db.collection('curls').get();
+      if (curls != null) {
+        for (var key in curls.keys) {
+          await _db.collection('curls').doc(key).delete();
+        }
+      }
+
+      // Delete settings
+      await _db.collection('settings').doc('general').delete();
+
+      // Delete endpoint stats if you have any
+      final stats = await _db.collection('endpoint_stats').get();
+      if (stats != null) {
+        for (var key in stats.keys) {
+          await _db.collection('endpoint_stats').doc(key).delete();
+        }
+      }
+    } catch (e) {
+      throw Exception('Failed to clean database: $e');
+    }
+  }
+
   Future<void> _updateNotifications(bool value) async {
     try {
       if (value && !kIsWeb && Platform.isMacOS) {
@@ -214,6 +240,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
                         if (result != null) {
                           try {
+                            // await _cleanDatabase();
                             final file = File(result.files.single.path!);
                             final content = await file.readAsString();
                             final data =
