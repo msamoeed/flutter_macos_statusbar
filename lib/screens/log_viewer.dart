@@ -55,120 +55,122 @@ class _LogViewerState extends State<LogViewer> {
       context: context,
       builder: (context) => Dialog(
         child: Container(
-          constraints: const BoxConstraints(maxWidth: 500),
+          constraints: const BoxConstraints(maxWidth: 600),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Filter Logs',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<TimeRangeFilter>(
-                  value: _selectedTimeRange,
-                  decoration: const InputDecoration(
-                    labelText: 'Time Range',
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: SingleChildScrollView(
+              child: Column(
+               // mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Filter Logs',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    ],
                   ),
-                  items: TimeRangeFilter.values.map((filter) {
-                    return DropdownMenuItem(
-                      value: filter,
-                      child: Text(filter.label),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        _selectedTimeRange = value;
-                      });
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<StatusFilter>(
-                  value: _selectedStatus,
-                  decoration: const InputDecoration(
-                    labelText: 'Status',
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  ),
-                  items: StatusFilter.values.map((filter) {
-                    return DropdownMenuItem(
-                      value: filter,
-                      child: Text(filter.label),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        _selectedStatus = value;
-                      });
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    labelText: 'Search',
-                    hintText: 'Search in request/response data',
-                    border: const OutlineInputBorder(),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        _searchController.clear();
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<TimeRangeFilter>(
+                    value: _selectedTimeRange,
+                    decoration: const InputDecoration(
+                      labelText: 'Time Range',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                    items: TimeRangeFilter.values.map((filter) {
+                      return DropdownMenuItem(
+                        value: filter,
+                        child: Text(filter.label),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      if (value != null) {
                         setState(() {
-                          _searchQuery = '';
+                          _selectedTimeRange = value;
                         });
-                      },
-                    ),
+                      }
+                    },
                   ),
-                  onChanged: (value) {
-                    setState(() {
-                      _searchQuery = value;
-                    });
-                  },
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () {
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<StatusFilter>(
+                    value: _selectedStatus,
+                    decoration: const InputDecoration(
+                      labelText: 'Status',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                    items: StatusFilter.values.map((filter) {
+                      return DropdownMenuItem(
+                        value: filter,
+                        child: Text(filter.label),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      if (value != null) {
                         setState(() {
-                          _selectedTimeRange = TimeRangeFilter.last7Days;
-                          _selectedStatus = StatusFilter.all;
-                          _searchQuery = '';
+                          _selectedStatus = value;
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      labelText: 'Search',
+                      hintText: 'Search in request/response data',
+                      border: const OutlineInputBorder(),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
                           _searchController.clear();
-                        });
-                      },
-                      child: const Text('Reset'),
+                          setState(() {
+                            _searchQuery = '';
+                          });
+                        },
+                      ),
                     ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        _loadLogs();
-                      },
-                      child: const Text('Apply'),
-                    ),
-                  ],
-                ),
-              ],
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _selectedTimeRange = TimeRangeFilter.last7Days;
+                            _selectedStatus = StatusFilter.all;
+                            _searchQuery = '';
+                            _searchController.clear();
+                          });
+                        },
+                        child: const Text('Reset'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          _loadLogs();
+                        },
+                        child: const Text('Apply'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
