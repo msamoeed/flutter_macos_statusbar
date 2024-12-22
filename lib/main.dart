@@ -124,6 +124,7 @@ class _MyHomePageState extends State<MyHomePage> {
     try {
       final response = await CurlDioConverter.executeCurl(curlStatus.curl);
       final isHealthy = response.statusCode == 200;
+      
 
       if (mounted) {
         setState(() {

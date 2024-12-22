@@ -280,7 +280,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               for (var entry in curlsData.entries) {
                                 await _db
                                     .collection('curls')
-                                    .doc(entry.key)
+                                    .doc()
                                     .set(entry.value);
                               }
                             }
